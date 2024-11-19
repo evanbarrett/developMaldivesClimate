@@ -1,0 +1,278 @@
+/**** Start of imports. If edited, may not auto-convert in the playground. ****/
+var imageVisParam = {"opacity":1,"bands":["remapped"],"min":1,"palette":["00ad1d","61ff00","d7ff00","ffc800","ff8100","ff0000"]},
+    coastaldem = ee.Image("users/lucasterres/coastaldem_mosaic"),
+    geometry = 
+    /* color: #98ff00 */
+    /* shown: false */
+    ee.Geometry.Polygon(
+        [[[-49.38164480225041, -29.26887449033241],
+          [-49.97490652100041, -29.086621119386034],
+          [-51.34819753662541, -29.498625519194324],
+          [-51.82060964600041, -29.641955994873186],
+          [-52.09526784912541, -30.089736029283632],
+          [-53.77617605225041, -33.074707881611126],
+          [-53.68828542725041, -33.73504170219983],
+          [-53.27080495850041, -33.88109934056814],
+          [-52.41387136475041, -33.15752375133933],
+          [-51.83159597412541, -32.17720530795554],
+          [-51.06255300537541, -31.561418039909363]]]);
+/***** End of imports. If edited, may not auto-convert in the playground. *****/
+
+
+/////////////////////////////////////////////////////////////////////
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~ DEM Input ~~~~~~~~~~~~~~~~~~~~~~~~~ //
+//
+//
+
+var coastaldem90 = ee.Image('users/lucasterres/DTM_PC');
+
+// Just renamed it to coastalDEM90 for simplicity sake -- should be aw2d30x
+var coastaldem90 = coastaldem
+
+// var coastaldem90 = ee.Image("projects/maldivesclimate2/assets/N00E073");
+
+
+//RMSE of DEM 
+var DEM_RSME = 3.10;
+
+var elevationVis = {
+  min: 1,
+  max: 100,
+  palette: ['00ad1d', '61ff00', 'd7ff00', 'ffc800', 'ff8100','ff0000'],
+};
+
+//
+/////////////////////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////////////////////
+// ~~~~~~~~~~~~~~~~~~ Sea Level Rise Scenarios ~~~~~~~~~~~~~~~~~~ //
+//
+
+// Uncomment whichever scenario you want to use (hope to integrate into UI panel soon)
+// (?) Pathway (RCP) 4.5 is 0.46 (0.31 - 0.63(0.32)) and RCP 8.5 is 0.68 (0.50 - 0.90 (0.40))
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//SSP1-2.6
+// var SEA_LEVEL_PROJECT = 1.2;
+var SEA_LEVEL_RSME = 0.40;
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SSP2-4.5
+// var SEA_LEVEL_PROJECT = .5;
+// var SEA_LEVEL_RSME = 0.40;
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+// SSP5-8.85
+// var SEA_LEVEL_PROJECT = .5;
+// var SEA_LEVEL_RSME = 0.40;
+// ~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+//
+/////////////////////////////////////////////////////////////////////
+
+
+/////////////////////////////////////////////////////////////////////
+// ~~~~~~~~~~~~~~~~~~~~~~ UI Panel Code ~~~~~~~~~~~~~~~~~~~~~~~~~~ //
+////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////
+// Study Area 
+
+var Male = ee.FeatureCollection('projects/maldivesclimate2/assets/male');
+var Fuvahmulah = ee.FeatureCollection('projects/maldivesclimate2/assets/fuvahmulah');
+var AdduAtoll = ee.FeatureCollection('projects/maldivesclimate2/assets/addu_atolls');
+var Kulhudhuffushi = ee.FeatureCollection('projects/maldivesclimate2/assets/kulhudhuffushi');
+var Thuraakunu = ee.FeatureCollection('projects/maldivesclimate2/assets/thuraakunu');
+var Eydhafushi = ee.FeatureCollection('projects/maldivesclimate2/assets/eydhafushi');
+var Dharanboodhoo = ee.FeatureCollection('projects/maldivesclimate2/assets/dharanboodhoo');
+var Vandhoo = ee.FeatureCollection('projects/maldivesclimate2/assets/vandhoo');
+var Thinadhoo = ee.FeatureCollection('projects/maldivesclimate2/assets/thinadhoo');
+
+// Now we put all of the defined study areas in one array
+
+var studyArea1 = {
+  'Male': Male,
+  'Fuvahmulah': Fuvahmulah,
+  'Addu Atoll': AdduAtoll,
+  'Kulhudhuffushi': Kulhudhuffushi,
+  'Thuraakunu': Thuraakunu,
+  'Eydhafushi': Eydhafushi,
+  'Dharanboodhoo': Dharanboodhoo,
+  'Vandhoo': Vandhoo,
+  'Thinadhoo': Thinadhoo,
+};
+
+var pathways = {
+  'SSP1-2.6': 0.2, 
+  'SSP2-4.5': 0.5, 
+  'SSP5-8.5': 1.5, 
+  'higher': 2, 
+
+};
+
+/* Step 3: Create UI Panels */
+var panel = ui.Panel({style: {width:'300px'}});
+ui.root.insert(0,panel);
+
+// intro
+var intro = ui.Label('Maldives Sea Level Rise Screening Tool', 
+{fontWeight: 'bold', fontSize: '24px', margin: '10px 5px'}
+);
+
+var subtitle = ui.Label('This script utilizes the uBTM modified deterministic Bathtub model developed by de Lima (2021). For internal NASA DEVELOP use only',
+  {margin: '0 0 0 12px',fontSize: '12px',color: 'gray'});
+panel.add(intro).add(subtitle);
+
+
+// allows user to select study area
+var selectArea = ui.Select({
+  items: Object.keys(studyArea1),
+});
+selectArea.setPlaceholder('Select area of study...');
+panel.add(ui.Label('1. Select study area')).add(selectArea); 
+
+//select SSP
+var selectSSP = ui.Select({
+  items: Object.keys(pathways),
+});
+selectSSP.setPlaceholder('Select SSP of study...');
+panel.add(ui.Label('2. Select SSP')).add(selectSSP); 
+
+//
+///////////////////////////////////////////////////////////////////////
+
+///////////////////////////////////////////////////////////////////////
+// Sea Level Rise Projections  -- Coming soon (?)
+//
+
+///////////////////////////////////////////////////////////////////////
+// DEM Input  -- Coming soon (?)
+//
+
+/// Create Land Use Map button
+var mapbutton = ui.Label('3.Create Land Use Map');
+panel.add(mapbutton);
+panel.add(ui.Button("Create Map",landMap));
+var additional_directions = ui.Label
+  ('Classified Imagery may take up to a couple minutes to display. Click tasks to export classified image to drive. Click layers to flip from composite to classified image.', 
+  {margin: '0 0 0 12px',fontSize: '12px',color: 'gray'});
+panel.add(additional_directions);
+
+var outputPanel = ui.Panel();
+print(outputPanel);
+
+/* Step 4: Start the classification process with the UI-entered information */
+
+function landMap(){
+ var selectedStudy_name = selectArea.getValue();
+ var studyArea = studyArea1[selectedStudy_name];
+ var SEA_LEVEL_PROJECT = pathways[selectSSP.getValue()];
+ Map.centerObject(studyArea, 13);
+
+
+
+
+
+// Filter
+
+
+// This can be change to change the visualization smoothing of the final: 
+// i.e. circle, gaussian, etc
+// Define a boxcar or low-pass kernel.
+var boxcar = ee.Kernel.circle({
+  radius: 5, units: 'pixels', normalize: true
+});
+
+// Smooth the image by convolving with the boxcar kernel.
+var coastaldem = coastaldem90.convolve(boxcar);
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Defines a custom function customRemap() that takes an image, a lower limit, and a new value as arguments. 
+// The function returns a new image where all pixel values greater than or equal to the lower limit 
+// have been replaced with the new value.
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+var customRemap = function(image, lowerLimit, newValue) {
+  var mask = image.gte(lowerLimit);
+  return mask.where(mask, newValue);
+};
+
+
+////////////////////////////////////////////////////////////////
+
+// upper limit of margin of error for sea level rise
+var SL_ERROR_POS = SEA_LEVEL_PROJECT + (SEA_LEVEL_RSME/2);
+
+// lower limit of margin of error for sea level rise
+var SL_ERROR_NEG = SEA_LEVEL_PROJECT - (SEA_LEVEL_RSME/2);
+
+//DEM RMSE divided by 2
+var DEM_ERROR_APPLY = DEM_RSME/2;
+
+// Upper limit: Where error makes it most likely for something to be classified as submerged
+// Becaues the DEM is lower and the sea level rise projection is higher
+var uplimit = (-DEM_ERROR_APPLY+SL_ERROR_POS);
+
+// Lower limit: Where error makes it least likely for something to be classified as submerged
+// Because the DEM is higher and the SLR projection is lower
+var lowerlimit = DEM_ERROR_APPLY+SL_ERROR_NEG;
+
+// Halfway point between the upper and lower bound -- used for the below calculations
+// Basically just finding the quartiles by subdividing each half 
+var half = ((((DEM_ERROR_APPLY+SL_ERROR_NEG)-(-DEM_ERROR_APPLY+SL_ERROR_POS))/2)+(-DEM_ERROR_APPLY+SL_ERROR_POS)); 
+
+
+var halflower = (((half)-(lowerlimit))/2)+lowerlimit;
+var halfup = (((uplimit)-(half))/2)+half;
+var halfup_2 = (((uplimit)-(halfup))/2)+halfup;
+var halflower_2 = (((halflower)-(lowerlimit))/2)+lowerlimit;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// The remap() method is called on the merge image, which maps the pixel values of the image to new values 
+// specified in the arguments. The resulting image is stored in a variable called remap. 
+// The remap() method is often used to stretch or compress the dynamic range of an image.
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+var map0 = customRemap(coastaldem,uplimit ,1);
+
+var map12_5 = customRemap(coastaldem,(((uplimit)-(halfup))/2)+halfup,10);
+var map25 = customRemap(coastaldem,halfup,100);
+var map37_5 = customRemap(coastaldem,(((halfup)-(half))/2)+half,150);
+
+var map50 = customRemap(coastaldem,half,175);
+
+var map62_5 = customRemap(coastaldem,(((half)-(halflower))/2)+halflower,207);
+var map75 = customRemap(coastaldem,halflower,502);
+var map87_5 = customRemap(coastaldem,(((halflower)-(lowerlimit))/2)+lowerlimit,1000);
+
+var map100 = customRemap(coastaldem, lowerlimit,3000);
+
+
+var merge = map0.add(map12_5.add(map25.add(map37_5.add(map50.add(map62_5.add(map75.add(map87_5.add(map100))))))));
+
+var inundation_prob = merge.remap([5145,2145,1145,643,436,261,111,11,1],
+   [0,12.5,25,37.5,50,62.5,75,87.5,100]);
+
+
+Map.addLayer(coastaldem, elevationVis, 'aw3d');
+Map.addLayer(inundation_prob, elevationVis, 'FINAL');
+
+Export.image.toDrive({   
+ image: inundation_prob,
+ description: 'MDT85',
+ scale: 30,
+ region: geometry,
+ maxPixels: 30e8,
+});
+
+Export.image.toAsset({   
+ image: inundation_prob,
+ description: 'Final1_3PC',
+ scale: 30,
+ region: geometry,
+ maxPixels: 30e8,
+});
+}
